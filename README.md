@@ -1,2 +1,2 @@
-# Minishell
-Ecolé 42 Minishell project
+# MINISHELL 
+- Libft kütüphanesi eklendi... :sob: :white_check_mark:
