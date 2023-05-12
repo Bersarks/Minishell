@@ -46,6 +46,7 @@ char		**ft_split(char const *s, char c);
 char		*ft_itoa(int n);
 char		*ft_strmapi(char const *s, char (*f)(unsigned int, char));
 char		*ft_strcat(char *dst, const char *src);
+char		*ft_strcpy(char *dst, const char *src);
 //Extra
 
 size_t		ft_strlen(const char *s);
@@ -58,6 +59,7 @@ void		*ft_memmove(void *dst, const void *src, size_t len);
 void		*ft_memcpy(void *dst, const void *src, size_t n);
 void		*ft_memchr(const void *s, int c, size_t n);
 void		*ft_calloc(size_t count, size_t size);
+
 //Extra
 void		ft_striteri(char *s, void (*f)(unsigned int, char*));
 void		ft_putchar_fd(char c, int fd);

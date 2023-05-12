@@ -1,139 +1,107 @@
 #include "../inc/minishell.h"
 
-// gelen char'a göre return yapar ~ işareti demek home directory demek onu returnler $$ demek pid demek ve $? exit status demek.
-char	*get_paid(char c)
-{
-	char	*tmp;
-
-	if (c == '~')
-		return (find_env_home());
-	else if (c == 'p')
-	{
-		tmp = ft_itoa(getpid());
-		return (tmp);
-	}
-	else if (c == 'e')
-		return (ft_itoa(g_shell->exit_status));
-	return (0);
-}
-
-// stringin içinde sadece dolar veya tilda varsa one göre bir değer return eder.
-char	*only_tilda_or_dollar(char *str)
+static int	cmd_next(char *str)
 {
 	int	i;
 
-	i = -1;
-	if (!ft_strncmp("~", str, 2))
-		return (get_paid('~'));
-	else if (!ft_strncmp("$$", str, 3))
-		return (get_paid('p'));
-	else if (!ft_strncmp("$?", str, 3))
-		return (get_paid('e'));
-	else
-	{
-		while (str[++i])
-			if (str[i] != '$')
-				return (NULL);
-		if (i > 2)
-			return (ft_strdup("1den fazla pid gstermek gibi bir gorevim yok"));
-	}
-	return (NULL);
+	i = 0;
+	while (!ft_strchr("|<> \"\'$?", str[i]))
+		i++;
+	return (i + 1);
 }
 
-// get_dollar_value'de ki new için açılması gereken yeri hesaplar.
-int	get_dollar_len(char *str, int len, char *paid)
+int	dollar_len(char *split_cmds, int len)
 {
-	char	*value;
+	char	*tmp;
 
-	while (*str)
+	tmp = split_cmds;
+	while (*tmp)
 	{
-		if (*str == '$')
+		if (*tmp == '$' && strtrim_len(tmp, "\"") > 1)
 		{
-			str++;
-			if (*str == '$')
+			tmp++;
+			len += free_strlen(get_value(tmp, 0));
+			if (*(tmp - 1) == '$')
 			{
-				str++;
-				len += ft_strlen(paid);
-				free(paid);
-				continue ;
+				len += cmd_next(tmp);
+				tmp += cmd_next(tmp) - 1;
 			}
-			value = get_value(str, 0);
-			len += ft_strlen(value);
-			while (ft_strchr("<|> \'\"$", *str) == NULL)
-				str++;
+			else
+				tmp += cmd_next(tmp);
+			if (*(tmp - 1) == '\"')
+				len++;
+			continue ;
 		}
-		else
-		{
-			len++;
-			str++;
-		}
+		len++;
+		tmp++;
 	}
 	return (len);
 }
 
-// dolardan sonra gelen isme göre veriyi envden veya localden çeker.
-char	*get_dollar_value(char *str, int idx)
+char	*get_dollar_val(char *cmd, int i, int idx)
 {
 	char	*new;
-	char	*paid;
-	char	*value;
-	char	*tmp;
 
-	new = ft_calloc(get_dollar_len(str, 0, get_paid('p') + 1), sizeof(char));
-	tmp = str;
-	while (*str)
+	new = ft_calloc(dollar_len(cmd, 0) + 1, sizeof(char));
+	while (*cmd)
 	{
-		if (*str == '$')
+		if (*cmd == '$' && strtrim_len(cmd, "\"") > 1)
 		{
-			str++;
-			if (*str == '$') // ard arda dolar gelirse pid dönmeli
+			idx = free_strlen(get_value(cmd + 1, 0));
+			if (*(cmd + 1) == '$' || *(cmd + 1) == '?')
 			{
-				paid = get_paid('p');
-				new = ft_strcat(new, paid);
-				str++;
-				idx += ft_strlen(paid);
-				free(paid);
+				i += idx;
+				new = free_strcat(new, get_value(cmd + 1, 0));
+				cmd += 2;
 				continue ;
 			}
-			value = get_value(str, 0);
-			idx += ft_strlen(value);
-			new = ft_strcat(new, value);
-			while (ft_strchr("<|> \'\"$", *str) == NULL)
-				str++;
+			i += idx;
+			new = free_strcat(new, get_value(cmd + 1, 0));
+			cmd += cmd_next(cmd + 1);
 		}
 		else
-		{
-			new[++idx] = *str;
-			str++;
-		}
+			new[i++] = *cmd++;
 	}
-	new[++idx] = 0;
-	free(tmp);
 	return (new);
 }
 
-// dolar karakterini ayrıştırır ve değeri localden veya envden çekerek değiştirir.
-char	*token_proccess(char *str)
+static void	token_proccess(char **split_cmds)
 {
-	if (!str)
-		return (NULL);
-	if (only_tilda_or_dollar(str) != NULL)
-		str = only_tilda_or_dollar(str);
-	else if (ft_strchr(str, '$') && (ft_strchr(str, '\'')
-		|| ft_strchr(str, '\"'))) // eğer ki string, dolar ve tırnak içeriyorsa.
-		str = with_quotes(str);
-	else if (ft_strchr(str, '$'))
-		str = get_dollar_value(str, -1);
-	return (str);
+	char	*tmp;
+
+	if (!*split_cmds)
+		return ;
+	else if (ft_strchr(*split_cmds, '$') && (ft_strchr(*split_cmds, '\"')
+			|| ft_strchr(*split_cmds, '\'')))
+	{
+		tmp = with_quotes(*split_cmds);
+		if (*tmp == '\"')
+			free(*split_cmds);
+		*split_cmds = tmp;
+	}
+	else if (ft_strchr(*split_cmds, '$') || ft_strchr(*split_cmds, '?'))
+	{
+		tmp = get_dollar_val(*split_cmds, 0, 0);
+		free(*split_cmds);
+		*split_cmds = tmp;
+	}
 }
 
-// parçalanmış inputta gezer ve tırnağın içinde $ görürse tırnağı parçalar içindeki değişkenlerin valuelerini çeker mesela $HOME var ise onun yerine /home/canodis yazar tırnak dışındaki değişkenlere de aynısını yapar.
-char	**tokenizer(char **d_input)
+void	tokenizer(char **split_cmds)
 {
-	int	i;
+	char	*tmp;
+	int		i;
 
 	i = -1;
-	while (d_input[++i])
-		d_input[i] = token_proccess(d_input[i]);
-	return (d_input);
+	while (split_cmds[++i])
+	{
+		if (!ft_strncmp("~", split_cmds[i], 2))
+		{
+			tmp = get_value("HOME", 0);
+			free(split_cmds[i]);
+			split_cmds[i] = tmp;
+		}
+		else
+			token_proccess(&split_cmds[i]);
+	}
 }
