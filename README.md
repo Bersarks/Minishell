@@ -1,4 +1,4 @@
 # MINISHELL 
 
 
-Bitmiş hali güncellenecektir.
+[Burak Yıldırım](https://github.com/burak-yldrm) ile beraber yaptığımız ortak grup projemizdir.
