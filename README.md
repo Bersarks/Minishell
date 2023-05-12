@@ -1,1 +1,4 @@
 # MINISHELL 
+
+
+Bitmiş hali güncellenecektir.
